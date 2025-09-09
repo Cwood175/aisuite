@@ -50,7 +50,7 @@ class OpenaiProvider(Provider):
             )
             return response
         except Exception as e:
-            raise LLMError(f"An error occurred: {e}")
+            raise LLMError(f"An error occurred: {e}") from e
 
 
 # Audio Classes
@@ -104,7 +104,7 @@ class OpenAIAudio(Audio):
                 return self._parse_openai_response(response)
 
             except Exception as e:
-                raise ASRError(f"OpenAI transcription error: {e}")
+                raise ASRError(f"OpenAI transcription error: {e}") from e
 
         async def create_stream_output(
             self,
@@ -123,7 +123,7 @@ class OpenAIAudio(Audio):
 
                 # Use the model name directly (client already extracted it)
                 model_name = model
-                
+
                 # Try real streaming with OpenAI API
                 api_params["stream"] = True
 
@@ -141,7 +141,6 @@ class OpenAIAudio(Audio):
                         api_params["response_format"] = "verbose_json"
 
                 try:
-                    
                     if isinstance(file, str):
                         with open(file, "rb") as audio_file:
                             response_stream = self.client.audio.transcriptions.create(
@@ -155,27 +154,27 @@ class OpenAIAudio(Audio):
                     # Process streaming response - handle new event types
                     for event in response_stream:
                         # Handle TranscriptionTextDeltaEvent (incremental text)
-                        if hasattr(event, 'type') and event.type == 'transcript.text.delta':
-                            if hasattr(event, 'delta') and event.delta:
+                        if hasattr(event, "type") and event.type == "transcript.text.delta":
+                            if hasattr(event, "delta") and event.delta:
                                 yield StreamingTranscriptionChunk(
                                     text=event.delta,
                                     is_final=False,  # Delta events are interim
                                     confidence=getattr(event, "confidence", None),
                                 )
                         # Handle TranscriptionTextDoneEvent (final complete text)
-                        elif hasattr(event, 'type') and event.type == 'transcript.text.done':
-                            if hasattr(event, 'text') and event.text:
+                        elif hasattr(event, "type") and event.type == "transcript.text.done":
+                            if hasattr(event, "text") and event.text:
                                 yield StreamingTranscriptionChunk(
                                     text=event.text,
                                     is_final=True,  # Done event is final
                                     confidence=getattr(event, "confidence", None),
                                 )
-                        
+
                 except Exception as stream_error:
-                    raise ASRError(f"OpenAI streaming transcription error: {stream_error}")
+                    raise ASRError(f"OpenAI streaming transcription error: {stream_error}") from stream_error
 
             except Exception as e:
-                raise ASRError(f"OpenAI streaming transcription error: {e}")
+                raise ASRError(f"OpenAI streaming transcription error: {e}") from e
 
         def _parse_openai_response(self, response) -> TranscriptionResult:
             """Parse OpenAI API response into TranscriptionResult."""
