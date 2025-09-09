@@ -1,16 +1,19 @@
-import openai
 import os
-from typing import Union, BinaryIO, Optional, AsyncGenerator
-from aisuite.provider import Provider, LLMError, ASRError, Audio
-from aisuite.providers.message_converter import OpenAICompliantMessageConverter
+from collections.abc import AsyncGenerator
+from typing import BinaryIO
+
+import openai
+
 from aisuite.framework.message import (
-    TranscriptionResult,
     Segment,
-    Word,
     StreamingTranscriptionChunk,
     TranscriptionOptions,
+    TranscriptionResult,
+    Word,
 )
 from aisuite.framework.parameter_mapper import ParameterMapper
+from aisuite.provider import ASRError, Audio, LLMError, Provider
+from aisuite.providers.message_converter import OpenAICompliantMessageConverter
 
 
 class OpenaiProvider(Provider):
@@ -70,8 +73,8 @@ class OpenAIAudio(Audio):
         def create(
             self,
             model: str,
-            file: Union[str, BinaryIO],
-            options: Optional[TranscriptionOptions] = None,
+            file: str | BinaryIO,
+            options: TranscriptionOptions | None = None,
             **kwargs,
         ) -> TranscriptionResult:
             """Create audio transcription using OpenAI Whisper API."""
@@ -109,8 +112,8 @@ class OpenAIAudio(Audio):
         async def create_stream_output(
             self,
             model: str,
-            file: Union[str, BinaryIO],
-            options: Optional[TranscriptionOptions] = None,
+            file: str | BinaryIO,
+            options: TranscriptionOptions | None = None,
             **kwargs,
         ) -> AsyncGenerator[StreamingTranscriptionChunk, None]:
             """Create output streaming audio transcription using OpenAI Whisper API."""
@@ -123,14 +126,17 @@ class OpenAIAudio(Audio):
 
                 # Use the model name directly (client already extracted it)
                 model_name = model
-                
+
                 # Try real streaming with OpenAI API
                 api_params["stream"] = True
 
                 # Handle timestamp_granularities requirement
                 if "timestamp_granularities" in api_params:
                     # OpenAI requires verbose_json format for timestamp_granularities
-                    if "response_format" in api_params and api_params["response_format"] != "verbose_json":
+                    if (
+                        "response_format" in api_params
+                        and api_params["response_format"] != "verbose_json"
+                    ):
                         raise ASRError(
                             f"OpenAI timestamp_granularities requires response_format='verbose_json', "
                             f"but got '{api_params['response_format']}'. "
@@ -141,7 +147,6 @@ class OpenAIAudio(Audio):
                         api_params["response_format"] = "verbose_json"
 
                 try:
-                    
                     if isinstance(file, str):
                         with open(file, "rb") as audio_file:
                             response_stream = self.client.audio.transcriptions.create(
@@ -155,24 +160,32 @@ class OpenAIAudio(Audio):
                     # Process streaming response - handle new event types
                     for event in response_stream:
                         # Handle TranscriptionTextDeltaEvent (incremental text)
-                        if hasattr(event, 'type') and event.type == 'transcript.text.delta':
-                            if hasattr(event, 'delta') and event.delta:
+                        if (
+                            hasattr(event, "type")
+                            and event.type == "transcript.text.delta"
+                        ):
+                            if hasattr(event, "delta") and event.delta:
                                 yield StreamingTranscriptionChunk(
                                     text=event.delta,
                                     is_final=False,  # Delta events are interim
                                     confidence=getattr(event, "confidence", None),
                                 )
                         # Handle TranscriptionTextDoneEvent (final complete text)
-                        elif hasattr(event, 'type') and event.type == 'transcript.text.done':
-                            if hasattr(event, 'text') and event.text:
+                        elif (
+                            hasattr(event, "type")
+                            and event.type == "transcript.text.done"
+                        ):
+                            if hasattr(event, "text") and event.text:
                                 yield StreamingTranscriptionChunk(
                                     text=event.text,
                                     is_final=True,  # Done event is final
                                     confidence=getattr(event, "confidence", None),
                                 )
-                        
+
                 except Exception as stream_error:
-                    raise ASRError(f"OpenAI streaming transcription error: {stream_error}")
+                    raise ASRError(
+                        f"OpenAI streaming transcription error: {stream_error}"
+                    )
 
             except Exception as e:
                 raise ASRError(f"OpenAI streaming transcription error: {e}")

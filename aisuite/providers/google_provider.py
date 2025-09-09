@@ -1,32 +1,32 @@
 """The interface to Google's Vertex AI."""
 
-import os
 import json
-from typing import List, Dict, Any, Optional, Union, BinaryIO, AsyncGenerator
+import os
+import pprint
+from collections.abc import AsyncGenerator
+from typing import Any, BinaryIO
 
 import vertexai
 from vertexai.generative_models import (
-    GenerativeModel,
-    GenerationConfig,
     Content,
+    FunctionDeclaration,
+    GenerationConfig,
+    GenerativeModel,
     Part,
     Tool,
-    FunctionDeclaration,
 )
-import pprint
 
 from aisuite.framework import ChatCompletionResponse, Message
 from aisuite.framework.message import (
+    Alternative,
+    Segment,
+    StreamingTranscriptionChunk,
+    TranscriptionOptions,
     TranscriptionResult,
     Word,
-    Segment,
-    Alternative,
-    TranscriptionOptions,
-    StreamingTranscriptionChunk,
 )
 from aisuite.framework.parameter_mapper import ParameterMapper
-from aisuite.provider import Provider, ASRError, Audio
-
+from aisuite.provider import ASRError, Audio, Provider
 
 DEFAULT_TEMPERATURE = 0.7
 ENABLE_DEBUG_MESSAGES = False
@@ -38,15 +38,15 @@ ENABLE_DEBUG_MESSAGES = False
 
 class GoogleMessageConverter:
     @staticmethod
-    def convert_user_role_message(message: Dict[str, Any]) -> Content:
+    def convert_user_role_message(message: dict[str, Any]) -> Content:
         """Convert user or system messages to Google Vertex AI format."""
         parts = [Part.from_text(message["content"])]
         return Content(role="user", parts=parts)
 
     @staticmethod
-    def convert_assistant_role_message(message: Dict[str, Any]) -> Content:
+    def convert_assistant_role_message(message: dict[str, Any]) -> Content:
         """Convert assistant messages to Google Vertex AI format."""
-        if "tool_calls" in message and message["tool_calls"]:
+        if message.get("tool_calls"):
             # Handle function calls
             tool_call = message["tool_calls"][
                 0
@@ -73,7 +73,7 @@ class GoogleMessageConverter:
         return Content(role="model", parts=parts)
 
     @staticmethod
-    def convert_tool_role_message(message: Dict[str, Any]) -> Part:
+    def convert_tool_role_message(message: dict[str, Any]) -> Part:
         """Convert tool messages to Google Vertex AI format."""
         if "content" not in message:
             raise ValueError("Tool result message must have a content field")
@@ -89,7 +89,7 @@ class GoogleMessageConverter:
             raise ValueError("Tool result message must be valid JSON")
 
     @staticmethod
-    def convert_request(messages: List[Dict[str, Any]]) -> List[Content]:
+    def convert_request(messages: list[dict[str, Any]]) -> list[Content]:
         """Convert messages to Google Vertex AI format."""
         # Convert all messages to dicts if they're Message objects
         messages = [
@@ -213,7 +213,7 @@ class GoogleProvider(Provider):
         )
 
         if not self.project_id or not self.location or not self.app_creds_path:
-            raise EnvironmentError(
+            raise OSError(
                 "Missing one or more required Google environment variables: "
                 "GOOGLE_PROJECT_ID, GOOGLE_REGION, GOOGLE_APPLICATION_CREDENTIALS. "
                 "Please refer to the setup guide: /guides/google.md."
@@ -349,8 +349,8 @@ class GoogleAudio(Audio):
         def create(
             self,
             model: str,
-            file: Union[str, BinaryIO],
-            options: Optional[TranscriptionOptions] = None,
+            file: str | BinaryIO,
+            options: TranscriptionOptions | None = None,
             **kwargs,
         ) -> TranscriptionResult:
             """Create audio transcription using Google Cloud Speech-to-Text API."""
@@ -378,8 +378,8 @@ class GoogleAudio(Audio):
         async def create_stream_output(
             self,
             model: str,
-            file: Union[str, BinaryIO],
-            options: Optional[TranscriptionOptions] = None,
+            file: str | BinaryIO,
+            options: TranscriptionOptions | None = None,
             **kwargs,
         ) -> AsyncGenerator[StreamingTranscriptionChunk, None]:
             """Create streaming audio transcription using Google Cloud Speech-to-Text API."""
@@ -399,7 +399,7 @@ class GoogleAudio(Audio):
 
                 responses = self.provider.speech_client.streaming_recognize(
                     config=streaming_config,
-                    requests=request_generator
+                    requests=request_generator,
                 )
 
                 for response in responses:
@@ -425,7 +425,7 @@ class GoogleAudio(Audio):
             return model
 
         def _prepare_api_params(
-            self, model: str, options: Optional[TranscriptionOptions], kwargs: dict
+            self, model: str, options: TranscriptionOptions | None, kwargs: dict
         ) -> dict:
             """Prepare API parameters for Google Speech."""
             if options is not None:
@@ -441,7 +441,7 @@ class GoogleAudio(Audio):
             )
             return api_params
 
-        def _read_audio_data(self, file: Union[str, BinaryIO]) -> bytes:
+        def _read_audio_data(self, file: str | BinaryIO) -> bytes:
             """Read audio data from file or file-like object."""
             if isinstance(file, str):
                 with open(file, "rb") as audio_file:
@@ -449,7 +449,7 @@ class GoogleAudio(Audio):
             else:
                 return file.read()
 
-        def _detect_audio_encoding(self, file: Union[str, BinaryIO], speech):
+        def _detect_audio_encoding(self, file: str | BinaryIO, speech):
             """Detect audio encoding based on file extension or content."""
             if isinstance(file, str):
                 # File path - detect by extension
@@ -469,7 +469,7 @@ class GoogleAudio(Audio):
             return speech.RecognitionConfig.AudioEncoding.LINEAR16
 
         def _build_recognition_config(
-            self, api_params: dict, speech, file: Union[str, BinaryIO]
+            self, api_params: dict, speech, file: str | BinaryIO
         ):
             """Build Google Speech RecognitionConfig from parameters."""
             # Auto-detect encoding if not specified
