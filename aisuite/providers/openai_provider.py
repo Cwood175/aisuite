@@ -1,8 +1,6 @@
 import openai
 import os
-from typing import Union, BinaryIO, Optional, AsyncGenerator
-from aisuite.provider import Provider, LLMError, ASRError, Audio
-from aisuite.providers.message_converter import OpenAICompliantMessageConverter
+from typing import BinaryIO, Optional, Union, AsyncGenerator
 from aisuite.framework.message import (
     TranscriptionResult,
     Segment,
@@ -11,6 +9,8 @@ from aisuite.framework.message import (
     TranscriptionOptions,
 )
 from aisuite.framework.parameter_mapper import ParameterMapper
+from aisuite.provider import Audio, ASRError, LLMError, Provider
+from aisuite.providers.message_converter import OpenAICompliantMessageConverter
 
 
 class OpenaiProvider(Provider):
@@ -123,7 +123,7 @@ class OpenAIAudio(Audio):
 
                 # Use the model name directly (client already extracted it)
                 model_name = model
-                
+
                 # Try real streaming with OpenAI API
                 api_params["stream"] = True
 
@@ -141,7 +141,7 @@ class OpenAIAudio(Audio):
                         api_params["response_format"] = "verbose_json"
 
                 try:
-                    
+
                     if isinstance(file, str):
                         with open(file, "rb") as audio_file:
                             response_stream = self.client.audio.transcriptions.create(
@@ -170,7 +170,7 @@ class OpenAIAudio(Audio):
                                     is_final=True,  # Done event is final
                                     confidence=getattr(event, "confidence", None),
                                 )
-                        
+
                 except Exception as stream_error:
                     raise ASRError(f"OpenAI streaming transcription error: {stream_error}")
 

@@ -157,7 +157,7 @@ class GoogleMessageConverter:
         if (
             hasattr(response.candidates[0].content.parts[0], "function_call")
             and response.candidates[0].content.parts[0].function_call
-        ):
+        ),
             function_call = response.candidates[0].content.parts[0].function_call
 
             # args is a MapComposite.
@@ -193,7 +193,7 @@ class GoogleMessageConverter:
             # Handle regular text response
             openai_response.choices[0].message.content = (
                 response.candidates[0].content.parts[0].text
-            )
+            ),
             openai_response.choices[0].finish_reason = "stop"
 
         return openai_response
