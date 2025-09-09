@@ -23,8 +23,9 @@ class OpenaiProvider(Provider):
         config.setdefault("api_key", os.getenv("OPENAI_API_KEY"))
         if not config["api_key"]:
             raise ValueError(
-                "OpenAI API key is missing. Please provide it in the config or set the OPENAI_API_KEY environment variable."
-            )
+        "OpenAI API key is missing. Please provide it in the config or set the "
+        "OPENAI_API_KEY environment variable."
+    )
 
         # NOTE: We could choose to remove above lines for api_key since OpenAI will automatically
         # infer certain values from the environment variables.

@@ -2,9 +2,10 @@
 
 import os
 import json
-from typing import List, Dict, Any, Optional, Union, BinaryIO, AsyncGenerator
-
+import pprint
 import vertexai
+from typing import BinaryIO, AsyncGenerator, Dict, List, Any, Optional, Union
+
 from vertexai.generative_models import (
     GenerativeModel,
     GenerationConfig,
@@ -13,7 +14,6 @@ from vertexai.generative_models import (
     Tool,
     FunctionDeclaration,
 )
-import pprint
 
 from aisuite.framework import ChatCompletionResponse, Message
 from aisuite.framework.message import (
@@ -48,9 +48,7 @@ class GoogleMessageConverter:
         """Convert assistant messages to Google Vertex AI format."""
         if "tool_calls" in message and message["tool_calls"]:
             # Handle function calls
-            tool_call = message["tool_calls"][
-                0
-            ]  # Assuming single function call for now
+            tool_call = message["tool_calls"][0]  # Assuming single function call for now
             function_call = tool_call["function"]
 
             # Create a Part from the function call
@@ -541,16 +539,12 @@ class GoogleAudio(Audio):
                 words = [
                     Word(
                         word=word.word,
-                        start=(
-                            word.start_time.total_seconds()
-                            if hasattr(word, "start_time")
-                            else 0.0
-                        ),
-                        end=(
-                            word.end_time.total_seconds()
-                            if hasattr(word, "end_time")
-                            else 0.0
-                        ),
+                        start=word.start_time.total_seconds()
+                        if hasattr(word, "start_time")
+                        else 0.0,
+                        end=word.end_time.total_seconds()
+                        if hasattr(word, "end_time")
+                        else 0.0,
                         confidence=getattr(word, "confidence", None),
                     )
                     for word in best_alternative.words
