@@ -1,9 +1,8 @@
+import functools
+import importlib
 from abc import ABC, abstractmethod
 from pathlib import Path
-import importlib
-import os
-import functools
-from typing import Union, BinaryIO, Optional
+from typing import BinaryIO
 
 
 class LLMError(Exception):
@@ -11,6 +10,14 @@ class LLMError(Exception):
 
     def __init__(self, message):
         super().__init__(message)
+        self.message = message
+
+    def __str__(self):
+        return self.message
+        self.message = message
+
+    def __str__(self):
+        return self.message
 
 
 class ASRError(Exception):
@@ -23,12 +30,12 @@ class ASRError(Exception):
 class Provider(ABC):
     def __init__(self):
         """Initialize provider with optional audio functionality."""
-        self.audio: Optional[Audio] = None
+        self.audio = Audio()
 
     @abstractmethod
     def chat_completions_create(self, model, messages):
         """Abstract method for chat completion calls, to be implemented by each provider."""
-        pass
+        raise NotImplementedError
 
 
 class ProviderFactory:
@@ -48,9 +55,9 @@ class ProviderFactory:
         # Lazily load the module
         try:
             module = importlib.import_module(module_path)
-        except ImportError as e:
+        except ImportError:
             raise ImportError(
-                f"Could not import module {module_path}: {str(e)}. Please ensure the provider is supported by doing ProviderFactory.get_supported_providers()"
+                f"{provider_key} is not available. Please ensure the provider is supported by doing ProviderFactory.get_supported_providers()"
             )
 
         # Instantiate the provider class
@@ -62,14 +69,16 @@ class ProviderFactory:
     def get_supported_providers(cls):
         """List all supported provider names based on files present in the providers directory."""
         provider_files = Path(cls.PROVIDERS_DIR).glob("*_provider.py")
-        return {file.stem.replace("_provider", "") for file in provider_files}
+        return {
+            file.stem.replace("_provider", ""): str(file) for file in provider_files
+        }
 
 
 class Audio:
     """Base class for all audio functionality."""
 
     def __init__(self):
-        self.transcriptions: Optional["Audio.Transcription"] = None
+        self.transcriptions: Audio.Transcription | None = None
 
     class Transcription(ABC):
         """Base class for audio transcription functionality."""
@@ -77,7 +86,7 @@ class Audio:
         def create(
             self,
             model: str,
-            file: Union[str, BinaryIO],
+            file: str | BinaryIO,
             options=None,
             **kwargs,
         ):
@@ -87,7 +96,7 @@ class Audio:
         async def create_stream_output(
             self,
             model: str,
-            file: Union[str, BinaryIO],
+            file: str | BinaryIO,
             options=None,
             **kwargs,
         ):
