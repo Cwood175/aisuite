@@ -1,11 +1,12 @@
 """Mistral provider for the aisuite."""
 
 import os
-from mistralai import Mistral
-from aisuite.framework import ChatCompletionResponse
-from aisuite.provider import Provider, LLMError
-from aisuite.providers.message_converter import OpenAICompliantMessageConverter
 
+from mistralai import Mistral
+
+from aisuite.framework import ChatCompletionResponse
+from aisuite.provider import LLMError, Provider
+from aisuite.providers.message_converter import OpenAICompliantMessageConverter
 
 # Implementation of Mistral provider.
 # Mistral's message format is the same as OpenAI's. Just different class names,
@@ -51,8 +52,8 @@ class MistralProvider(Provider):
         config.setdefault("api_key", os.getenv("MISTRAL_API_KEY"))
         if not config["api_key"]:
             raise ValueError(
-                "Mistral API key is missing. Please provide it in the config or set the "
-                "MISTRAL_API_KEY environment variable."
+                "Mistral API key is missing. Please provide it in the config or set "
+                "the MISTRAL_API_KEY environment variable."
             )
         self.client = Mistral(**config)
         self.transformer = MistralMessageConverter()
